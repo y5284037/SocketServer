@@ -1,10 +1,7 @@
 package TCPSocket;
 
-import org.apache.log4j.Logger;
-
 import java.io.FileInputStream;
-import java.io.FileReader;
-import java.io.InputStreamReader;
+import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.Properties;
@@ -17,24 +14,52 @@ import java.util.Properties;
  */
 
 public class Server {
-    private static Logger logger = Logger.getLogger(Server.class);
-    private static Properties properties = new Properties();
-    public static void main(String[] args) throws Exception{
-        properties.load(Object.class.getResourceAsStream("/config.properties"));
-        //服务端在20006端口监听客户端请求的TCP连接
-        ServerSocket server = new ServerSocket(new Integer(properties.getProperty("hostPort")));
-        Socket client = null;
-        boolean f = true;
-        while (true) {
+    private  Properties config;
+    private  int hostPort;
+    private  ServerSocket socketServer;
+    private  Socket socketClient;
     
-            //等待客户端的连接，如果没有获取连接
-            client = server.accept();
-            logger.info("客户端连接成功");
-            //为每个客户端连接开启一个线程
-            new Thread(new ServerThread(client)).start();
+    
+    /**
+     * 启动服务
+     * @throws IOException
+     */
+    public void startServer() {
+        try {
+            init();
+        } catch (Exception e) {
+            System.out.println("程序化初始化失败,请确认config.properties在当前目录下,并重新运行程序.");
+            return;
         }
         
+        try {
+            socketServer = new ServerSocket(hostPort);
+        } catch (IOException e) {
+            System.out.println("服务启动失败,请重新启动程序.");
+            return;
+        }
         
+        System.out.println("服务端口启动成功，等待客户端接入...");
+        
+        while (true) {
+            try {
+                socketClient = socketServer.accept();
+                new Thread(new ServerThread(socketClient)).start();//为每个客户端连接开启一个线程
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+    
+    /**
+     * 初始化程序,加载配置文件.
+     * @throws Exception
+     */
+    private  void init() throws Exception {
+        config = new Properties();
+        config.load(new FileInputStream(System.getProperty("user.dir")+"/config.properties"));
+//        config.load(Object.class.getResourceAsStream("/config.properties"));
+        hostPort = Integer.valueOf(config.getProperty("hostPort"));
     }
 }
 

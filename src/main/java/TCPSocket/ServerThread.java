@@ -1,8 +1,8 @@
 package TCPSocket;
 
-import org.apache.log4j.Logger;
-
-import java.io.*;
+import java.io.DataInputStream;
+import java.io.FileInputStream;
+import java.io.IOException;
 import java.net.Socket;
 import java.util.Properties;
 
@@ -14,50 +14,36 @@ import java.util.Properties;
  */
 
 public class ServerThread implements Runnable {
-    private Logger logger = Logger.getLogger(ServerThread.class);
-    private Socket client = null;
-    private Properties properties = null;
+    private Properties config;
+    private int dataSize;
+    private Socket socketClient;
+    private DataInputStream socketDataIn;
     
-    public ServerThread(Socket client) {
-        this.client = client;
+    public ServerThread(Socket socketClient) {
+        this.socketClient = socketClient;
     }
     
     @Override
     public void run() {
-        
-        //获取Socket的输入流，用来接收从客户端发送过来的数据
-        DataInputStream in = null;
-        properties = new Properties();
         try {
-            properties.load(Object.class.getResourceAsStream("/config.properties"));
-            in = new DataInputStream(client.getInputStream());
-        } catch (IOException e) {
+            init();
+            socketDataIn = new DataInputStream(socketClient.getInputStream());
+        } catch (Exception e) {
             e.printStackTrace();
         }
-        boolean flag = true;
-        byte[] arr = new byte[new Integer(properties.getProperty("dataSize"))];
-        BufferedWriter bw = null;
-        try {
-            bw = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(properties.getProperty("dataLocation"),true)));
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
-        }
-        while (flag) {
-            //接收从客户端发送过来的数据
+        byte[] arr = new byte[dataSize];
+        Log.buildLogsFile();
+        Log.runtimeInfo("客户端成功接入.");
+        while (true) {
             try {
-                assert in != null;
-                in.read(arr);
-                assert bw != null;
-                bw.write(new String(arr));
-                bw.newLine();
-                bw.flush();
-                logger.info("Data Recive Success ");
-                
-            } catch (Exception e) {
-                logger.info("客户端断开连接");
-                e.printStackTrace();
+                socketDataIn.read(arr);
+                Log.dataInfo(arr);
+                Log.runtimeInfo("Data Recive Success");
+            } catch (IOException e) {
                 try {
-                    client.close();
+                    Log.runtimeInfo("客户端断开连接,等待客户端重连.");
+                    Log.close();
+                    socketClient.close();
                 } catch (IOException e1) {
                     e1.printStackTrace();
                 }
@@ -65,4 +51,15 @@ public class ServerThread implements Runnable {
             }
         }
     }
+    
+    private void init() throws Exception {
+        config = new Properties();
+        config.load(new FileInputStream(System.getProperty("user.dir") + "/config.properties"));
+//        config.load(Object.class.getResourceAsStream("/config.properties"));
+        dataSize = Integer.valueOf(config.getProperty("dataSize"));
+    }
+    
+    
 }
+
+
